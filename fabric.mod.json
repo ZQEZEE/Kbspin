@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "kbspin",
+  "version": "${version}",
+  "name": "KB Spin",
+  "description": "Spins the camera 360 degrees in 1-2 ticks on a keybind (knockback displacement).",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.example.kbspin.KbSpinClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "fabric-api": "*"
+  }
+}
