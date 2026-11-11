@@ -14,23 +14,30 @@ import net.minecraft.util.hit.EntityHitResult;
 import org.lwjgl.glfw.GLFW;
 
 public class KbSpinClient implements ClientModInitializer {
-    /** На сколько градусов повернуть камеру перед ударом (180 = отбросит назад). */
-    private static final float ANGLE = 180.0f;
+    /** Угол для кнопок влево/вправо. */
+    private static final float SIDE_ANGLE = 90.0f;
+    /** Первый полуоборот для режима 360 (второй полуоборот возвращает камеру). */
+    private static final float HALF_TURN = 180.0f;
 
-    private static KeyBinding spinKey;
+    private static KeyBinding leftKey;
+    private static KeyBinding rightKey;
+    private static KeyBinding fullKey;
 
-    private int phase = 0; // 0 = ждём, 1 = повёрнуто, ждём следующий тик
+    private int phase = 0; // 0 = ждём, 1 = повёрнуто, бьём на следующем тике
     private float startYaw;
     private Entity target;
 
     @Override
     public void onInitializeClient() {
-        spinKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.kbspin.spin",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_R,
-                KeyBinding.Category.create(Identifier.of("kbspin", "main"))
-        ));
+        KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("kbspin", "main"));
+
+        leftKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "KB Spin Left", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Z, category));
+        rightKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "KB Spin Right", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_X, category));
+        fullKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "KB Spin 360", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_C, category));
+
         ClientTickEvents.START_CLIENT_TICK.register(this::onTick);
     }
 
@@ -42,7 +49,10 @@ public class KbSpinClient implements ClientModInitializer {
         }
 
         if (phase == 0) {
-            if (spinKey.wasPressed()) {
+            boolean left = leftKey.wasPressed();
+            boolean right = rightKey.wasPressed();
+            boolean full = fullKey.wasPressed();
+            if (left || right || full) {
                 // запоминаем цель до поворота камеры
                 if (client.crosshairTarget instanceof EntityHitResult hit) {
                     target = hit.getEntity();
@@ -50,13 +60,15 @@ public class KbSpinClient implements ClientModInitializer {
                     target = null;
                 }
                 startYaw = player.getYaw();
-                player.setYaw(startYaw + ANGLE); // тик 1: камера повёрнута
+                // в Minecraft yaw растёт при повороте вправо
+                float offset = full ? HALF_TURN : (right ? SIDE_ANGLE : -SIDE_ANGLE);
+                player.setYaw(startYaw + offset);
                 phase = 1;
             }
             return;
         }
 
-        // тик 2: бьём цель и возвращаем камеру
+        // тик 2: бьём цель и возвращаем камеру (для 360 это второй полуоборот)
         if (target != null && target.isAlive()) {
             client.interactionManager.attackEntity(player, target);
             player.swingHand(Hand.MAIN_HAND);
